@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # rafiq_app
 
 A new Flutter project.
@@ -15,3 +16,7 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+=======
+# Rafiq
+Rafiq - AI-powered daily life organizer with tasks, goals, reminders, and smart planning.
+>>>>>>> 03a1f205f7a99999ffe76e2d9a8b0fb743bb052c

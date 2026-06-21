@@ -1,7 +1,9 @@
 import 'package:isar_community/isar.dart';
-import '../../domain/repositories/task_repository.dart';
+
 import '../../domain/entities/task_entity.dart';
+import '../../domain/repositories/task_repository.dart';
 import '../models/task.dart';
+import '../mappers/task_mapper.dart';
 
 class TaskRepositoryImpl implements TaskRepository {
   final Isar isar;
@@ -10,76 +12,77 @@ class TaskRepositoryImpl implements TaskRepository {
 
   @override
   Future<void> addTask(TaskEntity task) async {
-    final isarTask = Task()
-      ..title = task.title
-      ..description = task.description
-      ..dueDate = task.dueDate
-      ..priority = task.priority
-      ..status = task.status
-      ..reminderTime = task.reminderTime
-      ..goalId = task.goalId
-      ..milestoneId = task.milestoneId;
+    final model = task.toModel()..createdAt = DateTime.now(); // مهم جداً
+
     await isar.writeTxn(() async {
-      await isar.tasks.put(isarTask);
+      await isar.tasks.put(model);
     });
+  }
+
+  @override
+  Future<void> updateTask(TaskEntity task) async {
+    final model = task.toModel();
+
+    await isar.writeTxn(() async {
+      await isar.tasks.put(model);
+    });
+  }
+
+  @override
+  Future<void> deleteTask(int id) async {
+    await isar.writeTxn(() async {
+      await isar.tasks.delete(id);
+    });
+  }
+
+  @override
+  Future<TaskEntity?> getTaskById(int id) async {
+    final model = await isar.tasks.get(id);
+    return model?.toEntity();
+  }
+
+  @override
+  Future<List<TaskEntity>> getTasksForGoal(int goalId) async {
+    final models = await isar.tasks.filter().goalIdEqualTo(goalId).findAll();
+    return models.map((m) => m.toEntity()).toList();
   }
 
   @override
   Future<List<TaskEntity>> getTodayTasks() async {
     final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
-    final isarTasks = await isar.tasks
+    final start = DateTime(now.year, now.month, now.day);
+    final end = start.add(const Duration(days: 1));
+
+    final models = await isar.tasks
         .filter()
-        .dueDateBetween(startOfDay, endOfDay)
+        .dueDateBetween(start, end)
         .findAll();
-    return isarTasks.map(_toEntity).toList();
+
+    return models.map((m) => m.toEntity()).toList();
   }
 
   @override
-  Future<void> updateTask(TaskEntity task) async {
-    final existing = await isar.tasks.get(task.id!);
-    if (existing != null) {
-      existing.title = task.title;
-      existing.description = task.description;
-      existing.dueDate = task.dueDate;
-      existing.priority = task.priority;
-      existing.status = task.status;
-      existing.reminderTime = task.reminderTime;
-      await isar.writeTxn(() async {
-        await isar.tasks.put(existing);
-      });
+  Future<List<TaskEntity>> getTasks({TaskFilter? filter}) async {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day);
+    final end = start.add(const Duration(days: 1));
+
+    List<Task> models;
+
+    switch (filter ?? TaskFilter.all) {
+      case TaskFilter.today:
+        models = await isar.tasks.filter().dueDateBetween(start, end).findAll();
+        break;
+
+      case TaskFilter.upcoming:
+        models = await isar.tasks.filter().dueDateGreaterThan(start).findAll();
+        break;
+
+      case TaskFilter.all:
+        models = await isar.tasks.where().findAll();
+        break;
     }
-  }
 
-  @override
-  Future<void> deleteTask(int taskId) async {
-    await isar.writeTxn(() async {
-      await isar.tasks.delete(taskId);
-    });
+    return models.map((m) => m.toEntity()).toList();
   }
-
-  @override
-  Future<List<TaskEntity>> getTasksForGoal(int goalId) async {
-    final isarTasks = await isar.tasks.filter().goalIdEqualTo(goalId).findAll();
-    return isarTasks.map(_toEntity).toList();
-  }
-
-  @override
-  Future<TaskEntity?> getTaskById(int id) async {
-    final task = await isar.tasks.get(id);
-    return task != null ? _toEntity(task) : null;
-  }
-
-  TaskEntity _toEntity(Task task) => TaskEntity(
-    id: task.id,
-    title: task.title,
-    description: task.description,
-    dueDate: task.dueDate,
-    priority: task.priority,
-    status: task.status,
-    reminderTime: task.reminderTime,
-    goalId: task.goalId,
-    milestoneId: task.milestoneId,
-  );
 }

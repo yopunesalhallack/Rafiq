@@ -4,19 +4,30 @@ part 'task.g.dart';
 
 @Collection()
 class Task {
-  Id id = Isar.autoIncrement; // مفتاح تلقائي
+  Id id = Isar.autoIncrement;
+
   late String title;
   String? description;
+
+  @Index()
   DateTime? dueDate;
+
   @enumerated
   Priority priority = Priority.medium;
+
   @enumerated
   TaskStatus status = TaskStatus.pending;
+
   DateTime? reminderTime;
   bool reminderSent = false;
-  int? goalId; // FK
-  int? milestoneId; // FK
-  DateTime createdAt = DateTime.now();
+
+  @Index()
+  int? goalId;
+
+  @Index()
+  int? milestoneId;
+
+  late DateTime createdAt;
 }
 
 enum Priority { low, medium, high }

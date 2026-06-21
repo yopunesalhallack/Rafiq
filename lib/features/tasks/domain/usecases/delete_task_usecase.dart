@@ -5,7 +5,7 @@ class DeleteTaskUseCase {
 
   DeleteTaskUseCase(this.repository);
 
-  Future<void> call(int taskId) async {
-    return await repository.deleteTask(taskId);
+  Future<void> call(int id) {
+    return repository.deleteTask(id);
   }
 }

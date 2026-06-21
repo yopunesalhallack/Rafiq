@@ -1,538 +1,383 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:rafiq_app/features/tasks/data/models/task.dart';
+import 'package:rafiq_app/features/tasks/domain/repositories/task_repository.dart';
+import 'package:rafiq_app/features/tasks/presentation/providers/taskListNotifier.dart';
+import 'package:rafiq_app/features/tasks/presentation/screens/task_details_screen.dart';
 import '../../domain/entities/task_entity.dart';
-import '../providers/task_providers.dart';
-import '../widgets/task_card.dart';
-import '../../data/models/task.dart' as task_model; // استيراد باسم مستعار
 
-class TodayScreen extends ConsumerStatefulWidget {
-  const TodayScreen({super.key});
+class TasksPage extends ConsumerWidget {
+  const TasksPage({super.key});
 
   @override
-  ConsumerState<TodayScreen> createState() => _TodayScreenState();
-}
-
-class _TodayScreenState extends ConsumerState<TodayScreen> {
-  String _filter = 'الكل';
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
-  task_model.Priority _selectedPriority = task_model.Priority.medium;
-  bool _hasReminder = false;
-  DateTime? _reminderTime;
-
-  @override
-  Widget build(BuildContext context) {
-    final tasksAsync = ref.watch(getTodayTasksProvider);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(taskListNotifierProvider);
+    final notifier = ref.read(taskListNotifierProvider.notifier);
 
     return Scaffold(
-      appBar: _buildAppBar(),
+      backgroundColor: const Color(0xFFF7F7F7),
+
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        title: const Text(
+          "مهامي",
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF333333),
+          ),
+        ),
+      ),
+
       body: Column(
         children: [
-          _buildStatsBar(),
-          _buildFilterTabs(),
+          _buildFilterBar(notifier, state.filter),
+
           Expanded(
-            child: tasksAsync.when(
-              data: (tasks) => _buildTaskList(tasks),
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => _buildErrorWidget(err),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: state.loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : state.tasks.isEmpty
+                  ? const Center(
+                      child: Text(
+                        "لا توجد مهام",
+                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: state.tasks.length,
+                      itemBuilder: (context, index) {
+                        final task = state.tasks[index];
+                        return _TaskCard(task: task);
+                      },
+                    ),
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddTaskDialog(),
-        icon: const Icon(Icons.add),
-        label: const Text('إضافة مهمة'),
+
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFFE67E22),
+        onPressed: () => showAddTaskSheet(context, notifier),
+        child: const Icon(Icons.add, size: 28),
       ),
     );
   }
 
-  AppBar _buildAppBar() {
-    return AppBar(
-      title: const Text(
-        'مهام اليوم',
-        style: TextStyle(fontFamily: 'Cairo', fontWeight: FontWeight.bold),
-      ),
-      centerTitle: true,
-      elevation: 0,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.refresh),
-          onPressed: () => ref.invalidate(getTodayTasksProvider),
-          tooltip: 'تحديث',
-        ),
-      ],
-      flexibleSpace: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-            colors: [Color(0xFFE67E22), Color(0xFFF39C12)],
-          ),
-        ),
+  Widget _buildFilterBar(TaskListNotifier notifier, TaskFilter selected) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          _filterChip("الكل", TaskFilter.all, selected, notifier),
+          const SizedBox(width: 8),
+          _filterChip("اليوم", TaskFilter.today, selected, notifier),
+          const SizedBox(width: 8),
+          _filterChip("القادمة", TaskFilter.upcoming, selected, notifier),
+        ],
       ),
     );
   }
 
-  Widget _buildStatsBar() {
-    final tasksAsync = ref.watch(getTodayTasksProvider);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      margin: const EdgeInsets.only(bottom: 8),
-      color: Colors.grey.shade50,
-      child: tasksAsync.when(
-        data: (tasks) {
-          final total = tasks.length;
-          final completed = tasks
-              .where((t) => t.status == task_model.TaskStatus.completed)
-              .length;
-          final progress = total > 0 ? (completed / total) : 0.0;
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildStatItem('الإجمالي', total.toString(), Colors.blue),
-              _buildStatItem('المُنجز', completed.toString(), Colors.green),
-              _buildStatItem(
-                'المتبقي',
-                (total - completed).toString(),
-                Colors.orange,
+  Widget _filterChip(
+    String label,
+    TaskFilter filter,
+    TaskFilter selected,
+    TaskListNotifier n,
+  ) {
+    final bool active = filter == selected;
+
+    return GestureDetector(
+      onTap: () => n.loadTasks(filter: filter),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFFE67E22) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            if (active)
+              BoxShadow(
+                color: Colors.orange.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
-              Expanded(
-                child: Column(
-                  children: [
-                    const Text('التقدم', style: TextStyle(fontSize: 12)),
-                    const SizedBox(height: 4),
-                    LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: Colors.grey.shade300,
-                      color: progress >= 0.7 ? Colors.green : Colors.orange,
-                      minHeight: 6,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    Text(
-                      '${(progress * 100).toInt()}%',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-        loading: () => const SizedBox.shrink(),
-        error: (_, _) => const SizedBox.shrink(),
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-      ],
-    );
-  }
-
-  Widget _buildFilterTabs() {
-    final filters = ['الكل', 'اليوم', 'معلقة', 'منجزة'];
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: filters.map((filter) {
-            final isSelected = _filter == filter;
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: ChoiceChip(
-                label: Text(filter, style: const TextStyle(fontSize: 13)),
-                selected: isSelected,
-                onSelected: (_) => setState(() => _filter = filter),
-                backgroundColor: Colors.grey.shade200,
-                selectedColor: const Color(0xFFE67E22).withValues(alpha: 0.2),
-                labelStyle: TextStyle(
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTaskList(List<TaskEntity> tasks) {
-    final filteredTasks = _filterTasks(tasks);
-
-    if (filteredTasks.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 80,
-              color: Colors.grey.shade300,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _filter == 'الكل'
-                  ? 'لا توجد مهام بعد'
-                  : 'لا توجد مهام في هذا التصنيف',
-              style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _filter == 'الكل'
-                  ? 'أضف مهمتك الأولى الآن'
-                  : 'غيّر التصنيف لعرض المهام',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
-            ),
           ],
         ),
-      );
-    }
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
 
-    return RefreshIndicator(
-      onRefresh: () async => ref.invalidate(getTodayTasksProvider),
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        itemCount: filteredTasks.length,
-        itemBuilder: (context, index) {
-          final task = filteredTasks[index];
-          return Dismissible(
-            key: Key(task.id.toString()),
-            background: Container(
-              color: Colors.red,
-              alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.only(left: 20),
-              child: const Icon(Icons.delete, color: Colors.white),
-            ),
-            secondaryBackground: Container(
-              color: Colors.red,
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 20),
-              child: const Icon(Icons.delete, color: Colors.white),
-            ),
-            confirmDismiss: (direction) async {
-              return await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('حذف المهمة'),
-                  content: Text('هل أنت متأكد من حذف "${task.title}"؟'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('إلغاء'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text(
-                        'حذف',
-                        style: TextStyle(color: Colors.red),
+  void showAddTaskSheet(BuildContext context, TaskListNotifier notifier) {
+    final title = TextEditingController();
+    final desc = TextEditingController();
+
+    Priority priority = Priority.medium;
+    DateTime? dueDate;
+    TimeOfDay? reminderTime;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 20,
+            right: 20,
+            top: 20,
+          ),
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              return SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "إضافة مهمة جديدة",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
+
+                    const SizedBox(height: 16),
+
+                    TextField(
+                      controller: title,
+                      decoration: const InputDecoration(
+                        labelText: "عنوان المهمة",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    TextField(
+                      controller: desc,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: "الوصف",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    const Text(
+                      "الأولوية",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+
+                    Row(
+                      children: [
+                        _priorityChip(
+                          "منخفضة",
+                          Priority.low,
+                          priority,
+                          setState,
+                        ),
+                        const SizedBox(width: 8),
+                        _priorityChip(
+                          "متوسطة",
+                          Priority.medium,
+                          priority,
+                          setState,
+                        ),
+                        const SizedBox(width: 8),
+                        _priorityChip(
+                          "عالية",
+                          Priority.high,
+                          priority,
+                          setState,
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    ListTile(
+                      title: Text(
+                        dueDate == null
+                            ? "اختر تاريخ الاستحقاق"
+                            : "تاريخ الاستحقاق: ${dueDate!.toLocal()}".split(
+                                ' ',
+                              )[0],
+                      ),
+                      trailing: const Icon(Icons.calendar_month),
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) {
+                          setState(() => dueDate = picked);
+                        }
+                      },
+                    ),
+
+                    ListTile(
+                      title: Text(
+                        reminderTime == null
+                            ? "تفعيل التذكير"
+                            : "التذكير: ${reminderTime!.format(context)}",
+                      ),
+                      trailing: const Icon(Icons.alarm),
+                      onTap: () async {
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.now(),
+                        );
+                        if (picked != null) {
+                          setState(() => reminderTime = picked);
+                        }
+                      },
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 50),
+                        backgroundColor: const Color(0xFFE67E22),
+                      ),
+                      onPressed: () {
+                        notifier.addNewTask(
+                          TaskEntity(
+                            title: title.text,
+                            description: desc.text,
+                            priority: priority,
+                            dueDate: dueDate,
+                            reminderTime: reminderTime == null
+                                ? null
+                                : DateTime(
+                                    dueDate?.year ?? DateTime.now().year,
+                                    dueDate?.month ?? DateTime.now().month,
+                                    dueDate?.day ?? DateTime.now().day,
+                                    reminderTime!.hour,
+                                    reminderTime!.minute,
+                                  ),
+                            createdAt: DateTime.now(),
+                          ),
+                        );
+                        Navigator.pop(context);
+                      },
+                      child: const Text("حفظ", style: TextStyle(fontSize: 18)),
+                    ),
+
+                    const SizedBox(height: 20),
                   ],
                 ),
               );
             },
-            onDismissed: (direction) async {
-              final useCase = ref.read(deleteTaskUseCaseProvider);
-              await useCase(task.id!);
-              ref.invalidate(getTodayTasksProvider);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('تم حذف "${task.title}"')),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _priorityChip(
+    String label,
+    Priority value,
+    Priority selected,
+    void Function(void Function()) setState,
+  ) {
+    final active = value == selected;
+
+    return GestureDetector(
+      onTap: () => setState(() => selected = value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFFE67E22) : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TaskCard extends ConsumerWidget {
+  final TaskEntity task;
+
+  const _TaskCard({required this.task});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(taskListNotifierProvider.notifier);
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => TaskDetailsPage(task: task)),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Checkbox(
+              value: task.status == TaskStatus.completed,
+              onChanged: (_) {
+                notifier.updateExistingTask(
+                  task.copyWith(
+                    status: task.status == TaskStatus.completed
+                        ? TaskStatus.pending
+                        : TaskStatus.completed,
+                  ),
                 );
-              }
-            },
-            child: TaskCard(
-              task: task,
-              onToggleComplete: () async {
-                final newStatus = task.status == task_model.TaskStatus.completed
-                    ? task_model.TaskStatus.pending
-                    : task_model.TaskStatus.completed;
-                final useCase = ref.read(updateTaskStatusUseCaseProvider);
-                await useCase(task.id!, newStatus);
-                ref.invalidate(getTodayTasksProvider);
               },
             ),
-          );
-        },
-      ),
-    );
-  }
-
-  List<TaskEntity> _filterTasks(List<TaskEntity> tasks) {
-    switch (_filter) {
-      case 'اليوم':
-        final now = DateTime.now();
-        final start = DateTime(now.year, now.month, now.day);
-        final end = start.add(const Duration(days: 1));
-        return tasks.where((t) {
-          if (t.dueDate == null) return false;
-          return t.dueDate!.isAfter(start) && t.dueDate!.isBefore(end);
-        }).toList();
-      case 'معلقة':
-        return tasks
-            .where((t) => t.status != task_model.TaskStatus.completed)
-            .toList();
-      case 'منجزة':
-        return tasks
-            .where((t) => t.status == task_model.TaskStatus.completed)
-            .toList();
-      default:
-        return tasks;
-    }
-  }
-
-  Widget _buildErrorWidget(Object error) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline, size: 60, color: Colors.red.shade300),
-          const SizedBox(height: 16),
-          Text('حدث خطأ: $error', textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () => ref.invalidate(getTodayTasksProvider),
-            icon: const Icon(Icons.refresh),
-            label: const Text('إعادة المحاولة'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddTaskDialog() {
-    _titleController.clear();
-    _descriptionController.clear();
-    _selectedDate = null;
-    _selectedTime = null;
-    _selectedPriority = task_model.Priority.medium;
-    _hasReminder = false;
-    _reminderTime = null;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text(
-              'إضافة مهمة جديدة',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: _titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'عنوان المهمة *',
-                      hintText: 'مثال: شراء حليب',
-                      border: OutlineInputBorder(),
-                    ),
-                    //textDirection: TextDirection.rtl,
-                    textAlign: TextAlign.right,
-                    autofocus: true,
-                    onChanged: (_) => setDialogState(() {}),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: 'وصف (اختياري)',
-                      hintText: 'تفاصيل إضافية...',
-                      border: OutlineInputBorder(),
-                    ),
-                    //textDirection: TextDirection.rtl,
-                    textAlign: TextAlign.right,
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(child: _buildDateButton(setDialogState)),
-                      const SizedBox(width: 8),
-                      Expanded(child: _buildTimeButton(setDialogState)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<task_model.Priority>(
-                    value: _selectedPriority,
-                    decoration: const InputDecoration(
-                      labelText: 'الأولوية',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: task_model.Priority.low,
-                        child: Text('منخفضة'),
-                      ),
-                      DropdownMenuItem(
-                        value: task_model.Priority.medium,
-                        child: Text('متوسطة'),
-                      ),
-                      DropdownMenuItem(
-                        value: task_model.Priority.high,
-                        child: Text('عالية'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        setDialogState(() => _selectedPriority = value);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  CheckboxListTile(
-                    title: const Text('تفعيل التذكير'),
-                    subtitle: _hasReminder && _reminderTime != null
-                        ? Text('التذكير في: ${_formatDateTime(_reminderTime!)}')
-                        : null,
-                    value: _hasReminder,
-                    onChanged: (value) {
-                      setDialogState(() {
-                        _hasReminder = value ?? false;
-                        if (_hasReminder &&
-                            _selectedDate != null &&
-                            _selectedTime != null) {
-                          _reminderTime = DateTime(
-                            _selectedDate!.year,
-                            _selectedDate!.month,
-                            _selectedDate!.day,
-                            _selectedTime!.hour,
-                            _selectedTime!.minute,
-                          ).subtract(const Duration(minutes: 15));
-                        }
-                      });
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                ],
+            Expanded(
+              child: Text(
+                task.title,
+                style: TextStyle(
+                  fontSize: 16,
+                  decoration: task.status == TaskStatus.completed
+                      ? TextDecoration.lineThrough
+                      : null,
+                ),
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('إلغاء'),
-              ),
-              ElevatedButton(
-                onPressed: _titleController.text.trim().isEmpty
-                    ? null
-                    : () async {
-                        await _saveTask();
-                        if (context.mounted) Navigator.pop(context);
-                      },
-                child: const Text('حفظ'),
-              ),
-            ],
-          );
-        },
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+          ],
+        ),
       ),
     );
-  }
-
-  Widget _buildDateButton(void Function(void Function()) setDialogState) {
-    return OutlinedButton.icon(
-      onPressed: () async {
-        final date = await showDatePicker(
-          context: context,
-          initialDate: _selectedDate ?? DateTime.now(),
-          firstDate: DateTime(2020),
-          lastDate: DateTime(2030),
-          // احذف locale أو استخدم الطريقة البديلة
-        );
-        if (date != null) {
-          setDialogState(() => _selectedDate = date);
-        }
-      },
-      icon: const Icon(Icons.calendar_today, size: 16),
-      label: Text(
-        _selectedDate != null
-            ? DateFormat('yyyy/MM/dd', 'ar').format(_selectedDate!)
-            : 'اختر التاريخ',
-        textAlign: TextAlign.right,
-      ),
-    );
-  }
-
-  Widget _buildTimeButton(void Function(void Function()) setDialogState) {
-    return OutlinedButton.icon(
-      onPressed: () async {
-        final time = await showTimePicker(
-          context: context,
-          initialTime: _selectedTime ?? TimeOfDay.now(),
-          // احذف locale أو استخدم الطريقة البديلة
-        );
-        if (time != null) {
-          setDialogState(() => _selectedTime = time);
-        }
-      },
-      icon: const Icon(Icons.access_time, size: 16),
-      label: Text(
-        _selectedTime != null ? _selectedTime!.format(context) : 'اختر الوقت',
-        textAlign: TextAlign.right,
-      ),
-    );
-  }
-
-  Future<void> _saveTask() async {
-    final title = _titleController.text.trim();
-    if (title.isEmpty) return;
-
-    DateTime? dueDate;
-    if (_selectedDate != null && _selectedTime != null) {
-      dueDate = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedTime!.hour,
-        _selectedTime!.minute,
-      );
-    }
-
-    final task = TaskEntity(
-      title: title,
-      description: _descriptionController.text.trim().isNotEmpty
-          ? _descriptionController.text.trim()
-          : null,
-      dueDate: dueDate,
-      priority: _selectedPriority,
-      status: task_model.TaskStatus.pending,
-      reminderTime: _hasReminder ? _reminderTime : null,
-    );
-
-    final useCase = ref.read(addTaskUseCaseProvider);
-    await useCase(task);
-
-    ref.invalidate(getTodayTasksProvider);
-
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('✅ تم إضافة "$title" بنجاح')));
-    }
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    return DateFormat('yyyy/MM/dd HH:mm', 'ar').format(dateTime);
   }
 }

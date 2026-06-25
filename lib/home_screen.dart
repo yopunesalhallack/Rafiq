@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
-// الألوان الخاصة بالهوية البصرية
 const Color kPrimaryColor = Color(0xFF27A4A7);
 const Color kDarkText = Color(0xFF1B1B1B);
 const Color kGreyText = Color(0xFF757575);
@@ -14,25 +14,20 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: TextDirection.rtl, // تفعيل اتجاه النص من اليمين لليسار
+      textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: Colors.white,
         body: Container(
           width: double.infinity,
           height: double.infinity,
-          // 2. تطبيق التدرج اللوني هنا
+          // gradient
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft, // يبدأ من الأعلى
-              end: Alignment.topRight, // ينتهي في الأسفل
+              begin: Alignment.topLeft,
+              end: Alignment.topRight,
               colors: [
-                Color.from(
-                  alpha: 1,
-                  red: 0.89,
-                  green: 0.957,
-                  blue: 0.965,
-                ), // لون سماوي فاتح جداً في الأعلى (يعبر عن هوية التطبيق)
-                Color.fromARGB(255, 162, 234, 236), // لون أبيض نقي في الأسفل
+                Color.from(alpha: 1, red: 0.89, green: 0.957, blue: 0.965),
+                Color.fromARGB(255, 162, 234, 236),
               ],
             ),
           ),
@@ -42,22 +37,18 @@ class HomeScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 10),
-                  // 3. رأس الصفحة (Header) - تمت إزالة خلفيته الصلبة ليظهر التدرج من خلفه
-                  _buildHeader(),
+                  _buildHeader(context),
 
                   const SizedBox(height: 20),
 
-                  // 4. بطاقة تقدم اليوم
                   _buildProgressCard(),
 
                   const SizedBox(height: 24),
 
-                  // 5. قسم مهام اليوم
                   _buildTaskSection(),
 
                   const SizedBox(height: 24),
 
-                  // 6. بطاقة AI Tip
                   _buildAITipCard(),
 
                   const SizedBox(height: 30),
@@ -66,45 +57,11 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
         ),
-
-        bottomNavigationBar: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: kPrimaryColor,
-          unselectedItemColor: kGreyText,
-          currentIndex: 0, // الصفحة الحالية هي الرئيسية
-          elevation: 10,
-          selectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
-          unselectedLabelStyle: const TextStyle(fontSize: 12),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_filled),
-              label: 'الرئيسية',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.flag_outlined),
-              label: 'الأهداف',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.smart_toy_outlined),
-              label: 'المساعد',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              label: 'الملف الشخصي',
-            ),
-          ],
-        ),
       ),
     );
   }
 
-  // --- أقسام الصفحة ---
-
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20.0),
@@ -121,27 +78,32 @@ class HomeScreen extends StatelessWidget {
               color: kDarkText,
             ),
           ),
-          // أيقونة الإشعارات
-          Stack(
-            children: [
-              const Icon(
-                Icons.notifications_outlined,
-                size: 30,
-                color: kPrimaryColor,
-              ),
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
+          //  notifications icon
+          GestureDetector(
+            onTap: () {
+              context.push('/notifications');
+            },
+            child: Stack(
+              children: [
+                const Icon(
+                  Icons.notifications_outlined,
+                  size: 30,
+                  color: kPrimaryColor,
+                ),
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -193,7 +155,6 @@ class HomeScreen extends StatelessWidget {
           height: 70,
           child: Stack(
             children: [
-              // حلقة خلفية رمادية فاتحة
               Center(
                 child: SizedBox(
                   width: 60,
@@ -205,7 +166,6 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              // حلقة التقدم الملونة
               Center(
                 child: SizedBox(
                   width: 60,
@@ -218,7 +178,6 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              // النص في المنتصف
               Center(
                 child: Text(
                   text,
@@ -251,7 +210,6 @@ class HomeScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // عنوان القسم وزر "المزيد"
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: const [
@@ -275,11 +233,9 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // المهمة الأولى
           _buildTaskItem('مراجعة عرض المشروع', 0.45, true),
           const SizedBox(height: 12),
 
-          // المهمة الثانية
           _buildTaskItem('تدريب رياضي', 0.45, false),
         ],
       ),
@@ -339,7 +295,6 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          // شريط التقدم
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(

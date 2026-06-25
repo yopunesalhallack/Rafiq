@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class RafiqLoginScreen extends StatefulWidget {
-  const RafiqLoginScreen({super.key});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
   @override
-  State<RafiqLoginScreen> createState() => _RafiqLoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _RafiqLoginScreenState extends State<RafiqLoginScreen> {
+class _LoginScreenState extends State<LoginScreen> {
   // متغيرات التحكم في حقول الإدخال
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();

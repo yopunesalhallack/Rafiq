@@ -1,13 +1,12 @@
-import '../entities/task_entity.dart';
+import 'package:rafiq_app/features/tasks/data/models/task.dart';
 
 abstract class TaskRepository {
-  Future<void> addTask(TaskEntity task);
-  Future<List<TaskEntity>> getTodayTasks();
-  Future<List<TaskEntity>> getTasks({TaskFilter? filter});
-  Future<void> updateTask(TaskEntity task);
+  Future<void> addTask(Task task);
+  Future<void> updateTask(Task task);
   Future<void> deleteTask(int taskId);
-  Future<List<TaskEntity>> getTasksForGoal(int goalId);
-  Future<TaskEntity?> getTaskById(int id);
-}
 
-enum TaskFilter { today, upcoming, all }
+  //get all  tasks
+  Stream<List<Task>> watchAllTasks();
+  //get task by goal id
+  Stream<List<Task>> watchTasksForGoal(int goalId);
+}

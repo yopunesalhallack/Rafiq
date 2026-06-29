@@ -16,7 +16,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  // بيانات محاكاة للمحادثة
+  //   temp data to view
   final List<ChatMessage> _messages = [
     ChatMessage(text: 'ما هي المهام ذات الأولوية لهذا اليوم؟', isUser: true),
     ChatMessage(

@@ -9,6 +9,6 @@ class Milestone {
   String? description;
   int orderIndex = 0;
   DateTime? dueDate;
-  late int goalId; // أضف late أو قم بتهيئته في المنشئ
+  late int goalId;
   bool completed = false;
 }

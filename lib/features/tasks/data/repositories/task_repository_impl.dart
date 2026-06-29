@@ -1,88 +1,109 @@
 import 'package:isar_community/isar.dart';
-
-import '../../domain/entities/task_entity.dart';
+import '../../../../core/database/isar_service.dart';
 import '../../domain/repositories/task_repository.dart';
 import '../models/task.dart';
-import '../mappers/task_mapper.dart';
+import '../../../goals/data/models/goal.dart';
 
 class TaskRepositoryImpl implements TaskRepository {
-  final Isar isar;
+  final IsarService _isarService;
+  TaskRepositoryImpl(this._isarService);
 
-  TaskRepositoryImpl(this.isar);
+  Future<Isar> get _db async => await _isarService.db;
 
-  @override
-  Future<void> addTask(TaskEntity task) async {
-    final model = task.toModel()..createdAt = DateTime.now(); // مهم جداً
+  // ==========================================================
+  // Progress
+  // ==========================================================
+  Future<void> _updateGoalProgress(int? goalId) async {
+    if (goalId == null) return; // check task  if  releated with goal
 
-    await isar.writeTxn(() async {
-      await isar.tasks.put(model);
-    });
-  }
+    final db = await _db;
 
-  @override
-  Future<void> updateTask(TaskEntity task) async {
-    final model = task.toModel();
+    final allTasks = await db.tasks.where().findAll();
 
-    await isar.writeTxn(() async {
-      await isar.tasks.put(model);
-    });
-  }
+    final tasks = allTasks.where((t) => t.goalId == goalId).toList();
 
-  @override
-  Future<void> deleteTask(int id) async {
-    await isar.writeTxn(() async {
-      await isar.tasks.delete(id);
-    });
-  }
+    final total = tasks.length;
+    final completed = tasks
+        .where((t) => t.status == TaskStatus.completed)
+        .length;
 
-  @override
-  Future<TaskEntity?> getTaskById(int id) async {
-    final model = await isar.tasks.get(id);
-    return model?.toEntity();
-  }
+    final progress = total == 0 ? 0 : ((completed / total) * 100).round();
 
-  @override
-  Future<List<TaskEntity>> getTasksForGoal(int goalId) async {
-    final models = await isar.tasks.filter().goalIdEqualTo(goalId).findAll();
-    return models.map((m) => m.toEntity()).toList();
-  }
-
-  @override
-  Future<List<TaskEntity>> getTodayTasks() async {
-    final now = DateTime.now();
-    final start = DateTime(now.year, now.month, now.day);
-    final end = start.add(const Duration(days: 1));
-
-    final models = await isar.tasks
-        .filter()
-        .dueDateBetween(start, end)
-        .findAll();
-
-    return models.map((m) => m.toEntity()).toList();
-  }
-
-  @override
-  Future<List<TaskEntity>> getTasks({TaskFilter? filter}) async {
-    final now = DateTime.now();
-    final start = DateTime(now.year, now.month, now.day);
-    final end = start.add(const Duration(days: 1));
-
-    List<Task> models;
-
-    switch (filter ?? TaskFilter.all) {
-      case TaskFilter.today:
-        models = await isar.tasks.filter().dueDateBetween(start, end).findAll();
-        break;
-
-      case TaskFilter.upcoming:
-        models = await isar.tasks.filter().dueDateGreaterThan(start).findAll();
-        break;
-
-      case TaskFilter.all:
-        models = await isar.tasks.where().findAll();
-        break;
+    final goal = await db.goals.where().idEqualTo(goalId).findFirst();
+    if (goal != null) {
+      goal.progressPercent = progress;
+      await db.goals.put(goal);
     }
+  }
 
-    return models.map((m) => m.toEntity()).toList();
+  // ==========================================================
+  //  CRUD & AI
+  // ==========================================================
+  @override
+  Future<void> addTask(Task task) async {
+    final db = await _db;
+    await db.writeTxn(() async {
+      await db.tasks.put(task);
+      await _updateGoalProgress(task.goalId);
+    });
+  }
+
+  @override
+  Future<void> updateTask(Task task) async {
+    final db = await _db;
+    await db.writeTxn(() async {
+      await db.tasks.put(task);
+      await _updateGoalProgress(task.goalId);
+    });
+  }
+
+  @override
+  Future<void> deleteTask(int taskId) async {
+    final db = await _db;
+    await db.writeTxn(() async {
+      final task = await db.tasks.get(taskId);
+      final goalId = task?.goalId;
+      await db.tasks.delete(taskId);
+      if (goalId != null) {
+        await _updateGoalProgress(goalId);
+      }
+    });
+  }
+
+  @override
+  Future<void> toggleTaskCompletion(int taskId) async {
+    final db = await _db;
+    await db.writeTxn(() async {
+      final task = await db.tasks.get(taskId);
+      if (task != null) {
+        task.status = task.status == TaskStatus.completed
+            ? TaskStatus.pending
+            : TaskStatus.completed;
+        await db.tasks.put(task);
+        await _updateGoalProgress(task.goalId);
+      }
+    });
+  }
+
+  // ==========================================================
+  //  watch  (Streams)
+  // ==========================================================
+  @override
+  Stream<List<Task>> watchAllTasks() {
+    final isarFuture = _isarService.db;
+    return Stream.fromFuture(isarFuture).asyncExpand((isar) {
+      return isar.tasks.where().watch(fireImmediately: true);
+    });
+  }
+
+  @override
+  Stream<List<Task>> watchTasksForGoal(int goalId) {
+    final isarFuture = _isarService.db;
+    return Stream.fromFuture(isarFuture).asyncExpand((isar) {
+      // use filteration in memory
+      return isar.tasks.where().watch(fireImmediately: true).map((tasks) {
+        return tasks.where((t) => t.goalId == goalId).toList();
+      });
+    });
   }
 }

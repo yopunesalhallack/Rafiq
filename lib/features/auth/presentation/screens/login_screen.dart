@@ -9,11 +9,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // متغيرات التحكم في حقول الإدخال
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-
-  // متغير لإخفاء / إظهار كلمة المرور
+  //password visible
   bool _isPasswordVisible = false;
 
   @override
@@ -30,9 +28,8 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: SafeArea(
         child: Directionality(
-          textDirection: TextDirection.rtl, // اتجاه النص من اليمين لليسار
+          textDirection: TextDirection.rtl,
           child: SingleChildScrollView(
-            // نستخدم SingleChildScrollView لتفادي مشكلة ظهور لوحة المفاتيح واختفاء الحقول
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: 24.0,
@@ -43,13 +40,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const SizedBox(height: 40),
 
-                  // 1. الشعار
+                  // logo
                   Column(
                     children: [
                       SizedBox(
                         height: 80,
                         width: 80,
-                        // ضع مسار صورة الشعار الخاصة بك هنا
                         child: Image.asset(
                           'assets/images/logodd.png',
                           fit: BoxFit.contain,
@@ -77,7 +73,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 50),
 
-                  // 2. عنوان الصفحة
                   const Text(
                     'تسجيل الدخول',
                     style: TextStyle(
@@ -94,7 +89,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 40),
 
-                  // 3. حقل اسم المستخدم
                   TextFormField(
                     controller: _usernameController,
                     textAlign: TextAlign.right,
@@ -129,10 +123,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 20),
 
-                  // 4. حقل كلمة المرور
+                  // password field
                   TextFormField(
                     controller: _passwordController,
-                    obscureText: !_isPasswordVisible, // التحكم في الإخفاء
+                    obscureText: !_isPasswordVisible,
                     textAlign: TextAlign.right,
                     decoration: InputDecoration(
                       labelText: 'كلمة المرور',
@@ -176,13 +170,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  // 5. زر "نسيت كلمة المرور"
+                  // reset password
                   Align(
-                    alignment: Alignment
-                        .centerLeft, // يظهر على اليسار (أي يمين الشاشة في RTL)
+                    alignment: Alignment.centerLeft,
                     child: TextButton(
                       onPressed: () {
-                        // ضع منطق استعادة كلمة المرور هنا
+                        // reset password  logic
                       },
                       child: const Text(
                         'نسيت كلمة المرور؟',
@@ -196,17 +189,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 30),
 
-                  // 6. زر تسجيل الدخول
+                  // login
                   SizedBox(
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
                       onPressed: () {
-                        // ضع منطق التحقق من البيانات وتسجيل الدخول هنا
                         final username = _usernameController.text.trim();
                         final password = _passwordController.text.trim();
                         if (username.isNotEmpty && password.isNotEmpty) {
-                          // نف الدخول...
                           context.go('/home');
                         }
                       },
@@ -230,7 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 40),
 
-                  // 7. زر إنشاء حساب جديد (إذا لم يكن لديك حساب)
+                  // sign up
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -243,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       GestureDetector(
                         onTap: () {
-                          // ضع منطق الانتقال لصفحة إنشاء حساب جديد هنا
+                          //sign up screen
                         },
                         child: const Text(
                           'إنشاء حساب جديد',

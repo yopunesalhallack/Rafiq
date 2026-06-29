@@ -6,7 +6,6 @@ class OnboardingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // نستخدم اللون الأساسي
     const primaryColor = Color(0xFF27A4A7);
 
     return Scaffold(
@@ -19,7 +18,6 @@ class OnboardingScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 1. مساحة فارغة للشعار (رفيق)
                 Column(
                   children: [
                     Container(
@@ -58,7 +56,6 @@ class OnboardingScreen extends StatelessWidget {
 
                 const Spacer(),
 
-                // 3. النصوص الرئيسية
                 const Text(
                   'أهلاً بك في رفيق!',
                   style: TextStyle(
@@ -110,7 +107,7 @@ class OnboardingScreen extends StatelessWidget {
                   height: 55,
                   child: OutlinedButton(
                     onPressed: () {
-                      // وضع هنا منطق إنشاء الحساب
+                      // create acounte later after add Ai agent
                     },
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: primaryColor, width: 1.5),
@@ -129,7 +126,6 @@ class OnboardingScreen extends StatelessWidget {
                   ),
                 ),
 
-                // مساحة سفلية للحفاظ على التوازن البصري
                 const SizedBox(height: 40),
               ],
             ),

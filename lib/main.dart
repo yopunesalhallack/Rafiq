@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rafiq_app/assistant_screen.dart';
+import 'package:rafiq_app/core/utils/service_locator.dart';
 import 'package:rafiq_app/features/auth/presentation/screens/login_screen.dart';
 import 'package:rafiq_app/features/goals/presentation/screens/goal_details_screen.dart';
 import 'package:rafiq_app/features/goals/presentation/screens/goals_screen.dart';
@@ -9,7 +10,11 @@ import 'package:rafiq_app/home_screen.dart';
 import 'package:rafiq_app/notifications_screen.dart';
 import 'package:rafiq_app/profile_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await setupServiceLocator();
+
   runApp(const RafiqApp());
 }
 
@@ -35,7 +40,6 @@ final _router = GoRouter(
         return ScaffoldWithNavBar(navigationShell: navigationShell);
       },
       branches: [
-        // الفرع 1: الصفحة الرئيسية
         StatefulShellBranch(
           routes: <RouteBase>[
             GoRoute(
@@ -46,10 +50,7 @@ final _router = GoRouter(
         ),
         StatefulShellBranch(
           routes: <RouteBase>[
-            GoRoute(
-              path: '/goals',
-              builder: (context, state) => const GoalsScreen(),
-            ),
+            GoRoute(path: '/goals', builder: (context, state) => GoalsScreen()),
           ],
         ),
         StatefulShellBranch(

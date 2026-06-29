@@ -33,26 +33,22 @@ const TaskSchema = CollectionSchema(
       type: IsarType.dateTime,
     ),
     r'goalId': PropertySchema(id: 3, name: r'goalId', type: IsarType.long),
-    r'milestoneId': PropertySchema(
-      id: 4,
-      name: r'milestoneId',
-      type: IsarType.long,
+    r'isSynced': PropertySchema(id: 4, name: r'isSynced', type: IsarType.bool),
+    r'lastUpdated': PropertySchema(
+      id: 5,
+      name: r'lastUpdated',
+      type: IsarType.dateTime,
     ),
     r'priority': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'priority',
       type: IsarType.byte,
       enumMap: _TaskpriorityEnumValueMap,
     ),
-    r'reminderSent': PropertySchema(
-      id: 6,
-      name: r'reminderSent',
-      type: IsarType.bool,
-    ),
-    r'reminderTime': PropertySchema(
+    r'serverId': PropertySchema(
       id: 7,
-      name: r'reminderTime',
-      type: IsarType.dateTime,
+      name: r'serverId',
+      type: IsarType.string,
     ),
     r'status': PropertySchema(
       id: 8,
@@ -90,6 +86,12 @@ int _taskEstimateSize(
       bytesCount += 3 + value.length * 3;
     }
   }
+  {
+    final value = object.serverId;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
   bytesCount += 3 + object.title.length * 3;
   return bytesCount;
 }
@@ -104,10 +106,10 @@ void _taskSerialize(
   writer.writeString(offsets[1], object.description);
   writer.writeDateTime(offsets[2], object.dueDate);
   writer.writeLong(offsets[3], object.goalId);
-  writer.writeLong(offsets[4], object.milestoneId);
-  writer.writeByte(offsets[5], object.priority.index);
-  writer.writeBool(offsets[6], object.reminderSent);
-  writer.writeDateTime(offsets[7], object.reminderTime);
+  writer.writeBool(offsets[4], object.isSynced);
+  writer.writeDateTime(offsets[5], object.lastUpdated);
+  writer.writeByte(offsets[6], object.priority.index);
+  writer.writeString(offsets[7], object.serverId);
   writer.writeByte(offsets[8], object.status.index);
   writer.writeString(offsets[9], object.title);
 }
@@ -124,12 +126,12 @@ Task _taskDeserialize(
   object.dueDate = reader.readDateTimeOrNull(offsets[2]);
   object.goalId = reader.readLongOrNull(offsets[3]);
   object.id = id;
-  object.milestoneId = reader.readLongOrNull(offsets[4]);
+  object.isSynced = reader.readBool(offsets[4]);
+  object.lastUpdated = reader.readDateTimeOrNull(offsets[5]);
   object.priority =
-      _TaskpriorityValueEnumMap[reader.readByteOrNull(offsets[5])] ??
+      _TaskpriorityValueEnumMap[reader.readByteOrNull(offsets[6])] ??
       Priority.low;
-  object.reminderSent = reader.readBool(offsets[6]);
-  object.reminderTime = reader.readDateTimeOrNull(offsets[7]);
+  object.serverId = reader.readStringOrNull(offsets[7]);
   object.status =
       _TaskstatusValueEnumMap[reader.readByteOrNull(offsets[8])] ??
       TaskStatus.pending;
@@ -153,15 +155,15 @@ P _taskDeserializeProp<P>(
     case 3:
       return (reader.readLongOrNull(offset)) as P;
     case 4:
-      return (reader.readLongOrNull(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 5:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 6:
       return (_TaskpriorityValueEnumMap[reader.readByteOrNull(offset)] ??
               Priority.low)
           as P;
-    case 6:
-      return (reader.readBool(offset)) as P;
     case 7:
-      return (reader.readDateTimeOrNull(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 8:
       return (_TaskstatusValueEnumMap[reader.readByteOrNull(offset)] ??
               TaskStatus.pending)
@@ -709,72 +711,80 @@ extension TaskQueryFilter on QueryBuilder<Task, Task, QFilterCondition> {
     });
   }
 
-  QueryBuilder<Task, Task, QAfterFilterCondition> milestoneIdIsNull() {
+  QueryBuilder<Task, Task, QAfterFilterCondition> isSyncedEqualTo(bool value) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
-        const FilterCondition.isNull(property: r'milestoneId'),
+        FilterCondition.equalTo(property: r'isSynced', value: value),
       );
     });
   }
 
-  QueryBuilder<Task, Task, QAfterFilterCondition> milestoneIdIsNotNull() {
+  QueryBuilder<Task, Task, QAfterFilterCondition> lastUpdatedIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
-        const FilterCondition.isNotNull(property: r'milestoneId'),
+        const FilterCondition.isNull(property: r'lastUpdated'),
       );
     });
   }
 
-  QueryBuilder<Task, Task, QAfterFilterCondition> milestoneIdEqualTo(
-    int? value,
+  QueryBuilder<Task, Task, QAfterFilterCondition> lastUpdatedIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'lastUpdated'),
+      );
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> lastUpdatedEqualTo(
+    DateTime? value,
   ) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'milestoneId', value: value),
+        FilterCondition.equalTo(property: r'lastUpdated', value: value),
       );
     });
   }
 
-  QueryBuilder<Task, Task, QAfterFilterCondition> milestoneIdGreaterThan(
-    int? value, {
+  QueryBuilder<Task, Task, QAfterFilterCondition> lastUpdatedGreaterThan(
+    DateTime? value, {
     bool include = false,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         FilterCondition.greaterThan(
           include: include,
-          property: r'milestoneId',
+          property: r'lastUpdated',
           value: value,
         ),
       );
     });
   }
 
-  QueryBuilder<Task, Task, QAfterFilterCondition> milestoneIdLessThan(
-    int? value, {
+  QueryBuilder<Task, Task, QAfterFilterCondition> lastUpdatedLessThan(
+    DateTime? value, {
     bool include = false,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         FilterCondition.lessThan(
           include: include,
-          property: r'milestoneId',
+          property: r'lastUpdated',
           value: value,
         ),
       );
     });
   }
 
-  QueryBuilder<Task, Task, QAfterFilterCondition> milestoneIdBetween(
-    int? lower,
-    int? upper, {
+  QueryBuilder<Task, Task, QAfterFilterCondition> lastUpdatedBetween(
+    DateTime? lower,
+    DateTime? upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         FilterCondition.between(
-          property: r'milestoneId',
+          property: r'lastUpdated',
           lower: lower,
           includeLower: includeLower,
           upper: upper,
@@ -843,87 +853,164 @@ extension TaskQueryFilter on QueryBuilder<Task, Task, QFilterCondition> {
     });
   }
 
-  QueryBuilder<Task, Task, QAfterFilterCondition> reminderSentEqualTo(
-    bool value,
-  ) {
+  QueryBuilder<Task, Task, QAfterFilterCondition> serverIdIsNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'reminderSent', value: value),
+        const FilterCondition.isNull(property: r'serverId'),
       );
     });
   }
 
-  QueryBuilder<Task, Task, QAfterFilterCondition> reminderTimeIsNull() {
+  QueryBuilder<Task, Task, QAfterFilterCondition> serverIdIsNotNull() {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
-        const FilterCondition.isNull(property: r'reminderTime'),
+        const FilterCondition.isNotNull(property: r'serverId'),
       );
     });
   }
 
-  QueryBuilder<Task, Task, QAfterFilterCondition> reminderTimeIsNotNull() {
+  QueryBuilder<Task, Task, QAfterFilterCondition> serverIdEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
-        const FilterCondition.isNotNull(property: r'reminderTime'),
+        FilterCondition.equalTo(
+          property: r'serverId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
       );
     });
   }
 
-  QueryBuilder<Task, Task, QAfterFilterCondition> reminderTimeEqualTo(
-    DateTime? value,
-  ) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(
-        FilterCondition.equalTo(property: r'reminderTime', value: value),
-      );
-    });
-  }
-
-  QueryBuilder<Task, Task, QAfterFilterCondition> reminderTimeGreaterThan(
-    DateTime? value, {
+  QueryBuilder<Task, Task, QAfterFilterCondition> serverIdGreaterThan(
+    String? value, {
     bool include = false,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         FilterCondition.greaterThan(
           include: include,
-          property: r'reminderTime',
+          property: r'serverId',
           value: value,
+          caseSensitive: caseSensitive,
         ),
       );
     });
   }
 
-  QueryBuilder<Task, Task, QAfterFilterCondition> reminderTimeLessThan(
-    DateTime? value, {
+  QueryBuilder<Task, Task, QAfterFilterCondition> serverIdLessThan(
+    String? value, {
     bool include = false,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         FilterCondition.lessThan(
           include: include,
-          property: r'reminderTime',
+          property: r'serverId',
           value: value,
+          caseSensitive: caseSensitive,
         ),
       );
     });
   }
 
-  QueryBuilder<Task, Task, QAfterFilterCondition> reminderTimeBetween(
-    DateTime? lower,
-    DateTime? upper, {
+  QueryBuilder<Task, Task, QAfterFilterCondition> serverIdBetween(
+    String? lower,
+    String? upper, {
     bool includeLower = true,
     bool includeUpper = true,
+    bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(
         FilterCondition.between(
-          property: r'reminderTime',
+          property: r'serverId',
           lower: lower,
           includeLower: includeLower,
           upper: upper,
           includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
         ),
+      );
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> serverIdStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'serverId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> serverIdEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'serverId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> serverIdContains(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'serverId',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> serverIdMatches(
+    String pattern, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'serverId',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> serverIdIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'serverId', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterFilterCondition> serverIdIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'serverId', value: ''),
       );
     });
   }
@@ -1187,15 +1274,27 @@ extension TaskQuerySortBy on QueryBuilder<Task, Task, QSortBy> {
     });
   }
 
-  QueryBuilder<Task, Task, QAfterSortBy> sortByMilestoneId() {
+  QueryBuilder<Task, Task, QAfterSortBy> sortByIsSynced() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'milestoneId', Sort.asc);
+      return query.addSortBy(r'isSynced', Sort.asc);
     });
   }
 
-  QueryBuilder<Task, Task, QAfterSortBy> sortByMilestoneIdDesc() {
+  QueryBuilder<Task, Task, QAfterSortBy> sortByIsSyncedDesc() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'milestoneId', Sort.desc);
+      return query.addSortBy(r'isSynced', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> sortByLastUpdated() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastUpdated', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> sortByLastUpdatedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastUpdated', Sort.desc);
     });
   }
 
@@ -1211,27 +1310,15 @@ extension TaskQuerySortBy on QueryBuilder<Task, Task, QSortBy> {
     });
   }
 
-  QueryBuilder<Task, Task, QAfterSortBy> sortByReminderSent() {
+  QueryBuilder<Task, Task, QAfterSortBy> sortByServerId() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'reminderSent', Sort.asc);
+      return query.addSortBy(r'serverId', Sort.asc);
     });
   }
 
-  QueryBuilder<Task, Task, QAfterSortBy> sortByReminderSentDesc() {
+  QueryBuilder<Task, Task, QAfterSortBy> sortByServerIdDesc() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'reminderSent', Sort.desc);
-    });
-  }
-
-  QueryBuilder<Task, Task, QAfterSortBy> sortByReminderTime() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'reminderTime', Sort.asc);
-    });
-  }
-
-  QueryBuilder<Task, Task, QAfterSortBy> sortByReminderTimeDesc() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'reminderTime', Sort.desc);
+      return query.addSortBy(r'serverId', Sort.desc);
     });
   }
 
@@ -1321,15 +1408,27 @@ extension TaskQuerySortThenBy on QueryBuilder<Task, Task, QSortThenBy> {
     });
   }
 
-  QueryBuilder<Task, Task, QAfterSortBy> thenByMilestoneId() {
+  QueryBuilder<Task, Task, QAfterSortBy> thenByIsSynced() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'milestoneId', Sort.asc);
+      return query.addSortBy(r'isSynced', Sort.asc);
     });
   }
 
-  QueryBuilder<Task, Task, QAfterSortBy> thenByMilestoneIdDesc() {
+  QueryBuilder<Task, Task, QAfterSortBy> thenByIsSyncedDesc() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'milestoneId', Sort.desc);
+      return query.addSortBy(r'isSynced', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> thenByLastUpdated() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastUpdated', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Task, Task, QAfterSortBy> thenByLastUpdatedDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'lastUpdated', Sort.desc);
     });
   }
 
@@ -1345,27 +1444,15 @@ extension TaskQuerySortThenBy on QueryBuilder<Task, Task, QSortThenBy> {
     });
   }
 
-  QueryBuilder<Task, Task, QAfterSortBy> thenByReminderSent() {
+  QueryBuilder<Task, Task, QAfterSortBy> thenByServerId() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'reminderSent', Sort.asc);
+      return query.addSortBy(r'serverId', Sort.asc);
     });
   }
 
-  QueryBuilder<Task, Task, QAfterSortBy> thenByReminderSentDesc() {
+  QueryBuilder<Task, Task, QAfterSortBy> thenByServerIdDesc() {
     return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'reminderSent', Sort.desc);
-    });
-  }
-
-  QueryBuilder<Task, Task, QAfterSortBy> thenByReminderTime() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'reminderTime', Sort.asc);
-    });
-  }
-
-  QueryBuilder<Task, Task, QAfterSortBy> thenByReminderTimeDesc() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addSortBy(r'reminderTime', Sort.desc);
+      return query.addSortBy(r'serverId', Sort.desc);
     });
   }
 
@@ -1421,9 +1508,15 @@ extension TaskQueryWhereDistinct on QueryBuilder<Task, Task, QDistinct> {
     });
   }
 
-  QueryBuilder<Task, Task, QDistinct> distinctByMilestoneId() {
+  QueryBuilder<Task, Task, QDistinct> distinctByIsSynced() {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'milestoneId');
+      return query.addDistinctBy(r'isSynced');
+    });
+  }
+
+  QueryBuilder<Task, Task, QDistinct> distinctByLastUpdated() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'lastUpdated');
     });
   }
 
@@ -1433,15 +1526,11 @@ extension TaskQueryWhereDistinct on QueryBuilder<Task, Task, QDistinct> {
     });
   }
 
-  QueryBuilder<Task, Task, QDistinct> distinctByReminderSent() {
+  QueryBuilder<Task, Task, QDistinct> distinctByServerId({
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'reminderSent');
-    });
-  }
-
-  QueryBuilder<Task, Task, QDistinct> distinctByReminderTime() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'reminderTime');
+      return query.addDistinctBy(r'serverId', caseSensitive: caseSensitive);
     });
   }
 
@@ -1491,9 +1580,15 @@ extension TaskQueryProperty on QueryBuilder<Task, Task, QQueryProperty> {
     });
   }
 
-  QueryBuilder<Task, int?, QQueryOperations> milestoneIdProperty() {
+  QueryBuilder<Task, bool, QQueryOperations> isSyncedProperty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addPropertyName(r'milestoneId');
+      return query.addPropertyName(r'isSynced');
+    });
+  }
+
+  QueryBuilder<Task, DateTime?, QQueryOperations> lastUpdatedProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'lastUpdated');
     });
   }
 
@@ -1503,15 +1598,9 @@ extension TaskQueryProperty on QueryBuilder<Task, Task, QQueryProperty> {
     });
   }
 
-  QueryBuilder<Task, bool, QQueryOperations> reminderSentProperty() {
+  QueryBuilder<Task, String?, QQueryOperations> serverIdProperty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addPropertyName(r'reminderSent');
-    });
-  }
-
-  QueryBuilder<Task, DateTime?, QQueryOperations> reminderTimeProperty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addPropertyName(r'reminderTime');
+      return query.addPropertyName(r'serverId');
     });
   }
 

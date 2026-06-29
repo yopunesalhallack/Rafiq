@@ -126,7 +126,6 @@ class NotificationsScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // النصوص
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

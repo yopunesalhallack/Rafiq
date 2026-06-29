@@ -1,42 +1,84 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:rafiq_app/core/utils/service_locator.dart';
+import 'package:rafiq_app/features/goals/domain/repositories/goal_repository.dart';
+import 'package:rafiq_app/features/goals/presentation/screens/addgoal_widget.dart';
+import '../../../tasks/domain/repositories/task_repository.dart';
+import '../../../tasks/data/models/task.dart';
+import '../../../goals/data/models/goal.dart';
 
-//   const colors
 const Color kPrimaryColor = Color(0xFF27A4A7);
 const Color kDarkText = Color(0xFF1B1B1B);
 const Color kGreyText = Color(0xFF757575);
 const Color kProgressOrange = Color(0xFFF5A623);
 
-class GoalDetailsScreen extends StatelessWidget {
+class GoalDetailsScreen extends StatefulWidget {
   const GoalDetailsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    //final Map<String, dynamic> goalData = GoRouterState.of(context).extra as Map<String, dynamic>;
-    // temo data
-    final goalData = {
-      'title': 'تعلم اللغة الفرنسية',
-      'subtitle': 'أساسيات اللغة',
-      'percentage': 60,
-      'date': '2023 - 2024',
-      'status': 'انتهى العمل',
-      'progressColor': kPrimaryColor,
-      'stages': [
-        {
-          'title': 'المرحلة الأولى: القواعد الأساسية',
-          'percentage': 80,
-          'tasks': [
-            {'title': 'قواعد اللغة الأساسية', 'completed': true},
-            {'title': 'قواعد اللغة المتقدمة', 'completed': false},
-            {'title': 'قواعد المحادثة', 'completed': false},
-          ],
-        },
-        {'title': 'المرحلة الثانية: المحادثة', 'percentage': 40, 'tasks': []},
-      ],
-    };
+  State<GoalDetailsScreen> createState() => _GoalDetailsScreenState();
+}
 
+class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
+  late Goal _goal;
+  List<Task> _tasks = [];
+  bool _isLoading = true;
+  bool _initialized = false;
+
+  final TaskRepository _taskRepository = getIt<TaskRepository>();
+  final GoalRepository _goalRepository = getIt<GoalRepository>();
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final extra = GoRouterState.of(context).extra;
+    if (extra is Goal) {
+      if (!_initialized || _goal.id != extra.id) {
+        _goal = extra;
+        _initialized = true;
+        _loadTasks();
+      }
+    } else if (!_initialized) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) context.pop();
+      });
+    }
+  }
+
+  Future<void> _loadTasks() async {
+    final tasksStream = _taskRepository.watchTasksForGoal(_goal.id);
+    tasksStream.listen((tasks) {
+      if (mounted) {
+        setState(() {
+          _tasks = tasks;
+          _isLoading = false;
+        });
+      }
+    });
+  }
+
+  Future<void> _toggleTask(Task task) async {
+    task.status = task.status == TaskStatus.completed
+        ? TaskStatus.pending
+        : TaskStatus.completed;
+    await _taskRepository.updateTask(task);
+    final updatedGoal = await _goalRepository.getGoal(_goal.id);
+    if (mounted) {
+      setState(() {
+        _goal = updatedGoal;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Directionality(
-      textDirection: TextDirection.ltr,
+      textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: Container(
@@ -44,8 +86,8 @@ class GoalDetailsScreen extends StatelessWidget {
           height: double.infinity,
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.topRight,
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
               colors: [
                 Color.from(alpha: 1, red: 0.89, green: 0.957, blue: 0.965),
                 Color.fromARGB(255, 162, 234, 236),
@@ -58,17 +100,11 @@ class GoalDetailsScreen extends StatelessWidget {
                 children: [
                   _buildHeader(context),
                   const SizedBox(height: 20),
-
-                  _buildGoalMainCard(goalData),
-
+                  _buildGoalMainCard(_goal),
                   const SizedBox(height: 24),
-
-                  _buildSmartPlanSection(goalData['stages'] as List),
-
+                  _buildSmartPlanSection(),
                   const SizedBox(height: 24),
-
                   _buildAITipCard(),
-
                   const SizedBox(height: 30),
                 ],
               ),
@@ -93,11 +129,8 @@ class GoalDetailsScreen extends StatelessWidget {
               color: kDarkText,
             ),
           ),
-
           IconButton(
-            onPressed: () {
-              context.pop();
-            },
+            onPressed: () => context.pop(),
             icon: const Icon(
               Icons.arrow_forward_ios,
               size: 20,
@@ -109,7 +142,8 @@ class GoalDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGoalMainCard(Map<String, dynamic> goal) {
+  Widget _buildGoalMainCard(Goal goal) {
+    double progress = goal.progressPercent / 100;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(16),
@@ -128,13 +162,12 @@ class GoalDetailsScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // العنوان والنسبة
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${goal['percentage']}%',
+                '${goal.progressPercent}%',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -145,7 +178,7 @@ class GoalDetailsScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    goal['title'],
+                    goal.title,
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -154,7 +187,7 @@ class GoalDetailsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    goal['subtitle'],
+                    goal.description ?? 'بدون وصف',
                     style: const TextStyle(fontSize: 14, color: kGreyText),
                   ),
                 ],
@@ -162,18 +195,16 @@ class GoalDetailsScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: goal['percentage'] / 100,
+              value: progress,
               minHeight: 8,
               backgroundColor: Colors.grey[200],
-              valueColor: AlwaysStoppedAnimation<Color>(goal['progressColor']),
+              valueColor: const AlwaysStoppedAnimation<Color>(kPrimaryColor),
             ),
           ),
           const SizedBox(height: 12),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -182,7 +213,7 @@ class GoalDetailsScreen extends StatelessWidget {
                   const Icon(Icons.access_time, size: 16, color: kGreyText),
                   const SizedBox(width: 6),
                   Text(
-                    goal['status'],
+                    goal.status == GoalStatus.active ? 'قيد التنفيذ' : 'مكتمل',
                     style: const TextStyle(fontSize: 14, color: kGreyText),
                   ),
                 ],
@@ -196,7 +227,8 @@ class GoalDetailsScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    goal['date'],
+                    goal.targetDate?.toIso8601String().substring(0, 10) ??
+                        'غير محدد',
                     style: const TextStyle(fontSize: 14, color: kGreyText),
                   ),
                 ],
@@ -208,35 +240,66 @@ class GoalDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSmartPlanSection(List<dynamic> stages) {
+  Widget _buildSmartPlanSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'الخطة الذكية',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: kDarkText,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'الخطة الذكية',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: kDarkText,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.add_circle_outline,
+                  size: 28,
+                  color: kPrimaryColor,
+                ),
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => AddTaskBottomSheet(goalId: _goal.id),
+                  );
+                },
+              ),
+            ],
           ),
           const SizedBox(height: 16),
-
-          ...stages.asMap().entries.map((entry) {
-            int index = entry.key;
-            var stage = entry.value;
-            return _buildStageItem(stage, isFirst: index == 0);
-          }).toList(),
+          if (_isLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (_tasks.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Text('لا توجد مهام فرعية لهذا الهدف بعد'),
+              ),
+            )
+          else
+            ..._tasks.map((task) => _buildTaskItem(task)),
         ],
       ),
     );
   }
 
-  Widget _buildStageItem(Map<String, dynamic> stage, {required bool isFirst}) {
+  Widget _buildTaskItem(Task task) {
+    final bool isCompleted = task.status == TaskStatus.completed;
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -250,83 +313,35 @@ class GoalDetailsScreen extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${stage['percentage']}%',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: kDarkText,
-                ),
-              ),
-              Text(
-                stage['title'],
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: kDarkText,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: stage['percentage'] / 100,
-              minHeight: 6,
-              backgroundColor: Colors.grey[200],
-              valueColor: const AlwaysStoppedAnimation<Color>(kPrimaryColor),
-            ),
-          ),
-
-          if (isFirst &&
-              stage['tasks'] != null &&
-              (stage['tasks'] as List).isNotEmpty) ...[
-            const SizedBox(height: 16),
-            ...(stage['tasks'] as List).map((task) {
-              return _buildTaskItem(task['title'], task['completed']);
-            }).toList(),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTaskItem(String title, bool isCompleted) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            title,
+            task.title,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: FontWeight.w500,
-              color: isCompleted ? kDarkText : kGreyText,
+              color: isCompleted ? kGreyText : kDarkText,
+              decoration: isCompleted ? TextDecoration.lineThrough : null,
             ),
           ),
-          Container(
-            width: 22,
-            height: 22,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isCompleted ? kPrimaryColor : Colors.transparent,
-              border: Border.all(
-                color: isCompleted ? kPrimaryColor : Colors.grey[400]!,
-                width: 2,
+          GestureDetector(
+            onTap: () => _toggleTask(task),
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isCompleted ? kPrimaryColor : Colors.transparent,
+                border: Border.all(
+                  color: isCompleted ? kPrimaryColor : Colors.grey[400]!,
+                  width: 2,
+                ),
               ),
+              child: isCompleted
+                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                  : null,
             ),
-            child: isCompleted
-                ? const Icon(Icons.check, size: 16, color: Colors.white)
-                : null,
           ),
         ],
       ),

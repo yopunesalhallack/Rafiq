@@ -1,6 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/utils/service_locator.dart';
+import '../../features/goals/domain/repositories/goal_repository.dart';
+import '../../features/goals/data/models/goal.dart';
+import '../../features/tasks/domain/repositories/task_repository.dart';
+import '../../features/tasks/data/models/task.dart';
+
+// الألوان
 const Color kPrimaryColor = Color(0xFF27A4A7);
 const Color kDarkText = Color(0xFF1B1B1B);
 const Color kGreyText = Color(0xFF757575);
@@ -8,19 +18,97 @@ const Color kLightBackground = Color(0xFFF6FAFB);
 const Color kProgressGreen = Color(0xFF4CB6B6);
 const Color kProgressOrange = Color(0xFFF5A623);
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  // حقن الـ Repositories
+  final GoalRepository _goalRepository = getIt<GoalRepository>();
+  final TaskRepository _taskRepository = getIt<TaskRepository>();
+
+  // إحصائيات الصفحة
+  int _averageProgress = 0;
+  int _completedTasks = 0;
+  int _totalTasks = 0;
+  int _completedGoals = 0;
+  int _totalGoals = 0;
+  List<Task> _incompleteTasks = [];
+  bool _isLoading = true;
+
+  StreamSubscription? _goalSubscription;
+  StreamSubscription? _taskSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToData();
+  }
+
+  void _listenToData() {
+    //  listen to goals
+    _goalSubscription = _goalRepository.watchGoals().listen((goals) {
+      if (mounted) {
+        _updateStatsFromGoals(goals);
+      }
+    });
+
+    //   listen to tasks
+    _taskSubscription = _taskRepository.watchAllTasks().listen((tasks) {
+      if (mounted) {
+        _updateStatsFromTasks(tasks);
+      }
+    });
+  }
+
+  void _updateStatsFromGoals(List<Goal> goals) {
+    setState(() {
+      _totalGoals = goals.length;
+      if (_totalGoals > 0) {
+        final sum = goals.fold<int>(0, (s, g) => s + g.progressPercent);
+        _averageProgress = (sum / _totalGoals).round();
+        _completedGoals = goals
+            .where((g) => g.status == GoalStatus.completed)
+            .length;
+      } else {
+        _averageProgress = 0;
+        _completedGoals = 0;
+      }
+      _isLoading = false;
+    });
+  }
+
+  void _updateStatsFromTasks(List<Task> tasks) {
+    setState(() {
+      _totalTasks = tasks.length;
+      _completedTasks = tasks
+          .where((t) => t.status == TaskStatus.completed)
+          .length;
+      _incompleteTasks = tasks
+          .where((t) => t.status != TaskStatus.completed)
+          .toList();
+    });
+  }
+
+  @override
+  void dispose() {
+    _goalSubscription?.cancel();
+    _taskSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         body: Container(
           width: double.infinity,
           height: double.infinity,
-          // gradient
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -38,19 +126,12 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   const SizedBox(height: 10),
                   _buildHeader(context),
-
                   const SizedBox(height: 20),
-
                   _buildProgressCard(),
-
                   const SizedBox(height: 24),
-
                   _buildTaskSection(),
-
                   const SizedBox(height: 24),
-
                   _buildAITipCard(),
-
                   const SizedBox(height: 30),
                 ],
               ),
@@ -66,7 +147,6 @@ class HomeScreen extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20.0),
       decoration: const BoxDecoration(),
-
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -78,7 +158,6 @@ class HomeScreen extends StatelessWidget {
               color: kDarkText,
             ),
           ),
-          //  notifications icon
           GestureDetector(
             onTap: () {
               context.push('/notifications');
@@ -111,6 +190,21 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildProgressCard() {
+    if (_isLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    final String todayProgressText = '$_averageProgress%';
+    final String tasksText = '$_completedTasks/$_totalTasks';
+    final String goalsText = _totalGoals > 0
+        ? '${(_completedGoals / _totalGoals * 100).round()}%'
+        : '0%';
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(16),
@@ -129,11 +223,21 @@ class HomeScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildProgressCircle(0.75, '75%', 'تقدم اليوم', kPrimaryColor),
-          _buildProgressCircle(0.75, '12/16', 'المهام المنجزة', kProgressGreen),
           _buildProgressCircle(
-            0.55,
-            '55%',
+            _averageProgress / 100,
+            todayProgressText,
+            'تقدم اليوم',
+            kPrimaryColor,
+          ),
+          _buildProgressCircle(
+            _totalTasks > 0 ? _completedTasks / _totalTasks : 0,
+            tasksText,
+            'المهام المنجزة',
+            kProgressGreen,
+          ),
+          _buildProgressCircle(
+            _totalGoals > 0 ? _completedGoals / _totalGoals : 0,
+            goalsText,
             'نسبة للأهداف القادرة',
             kProgressOrange,
           ),
@@ -205,6 +309,14 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildTaskSection() {
+    if (_isLoading) {
+      return const SizedBox();
+    }
+
+    //display 3latest tasks
+
+    final displayTasks = _incompleteTasks.take(3).toList();
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: Column(
@@ -212,8 +324,8 @@ class HomeScreen extends StatelessWidget {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text(
+            children: [
+              const Text(
                 'مهام اليوم',
                 style: TextStyle(
                   fontSize: 18,
@@ -221,22 +333,44 @@ class HomeScreen extends StatelessWidget {
                   color: kDarkText,
                 ),
               ),
-              Text(
-                'المزيد',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: kPrimaryColor,
+              GestureDetector(
+                onTap: () {
+                  // rout to goals detils : add a button to back to the home
+                  context.push('/goals');
+                },
+                child: const Text(
+                  'المزيد',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: kPrimaryColor,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
+          if (displayTasks.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: Text(
+                  'لا توجد مهام حالياً، أضف مهمة جديدة!',
+                  style: TextStyle(color: kGreyText),
+                ),
+              ),
+            ),
+          ...displayTasks.map((task) {
+            // progress persintage
+            double progress = task.status == TaskStatus.completed ? 1.0 : 0.0;
 
-          _buildTaskItem('مراجعة عرض المشروع', 0.45, true),
-          const SizedBox(height: 12),
-
-          _buildTaskItem('تدريب رياضي', 0.45, false),
+            return _buildTaskItem(
+              task.title,
+              progress,
+              task.status == TaskStatus.completed,
+            );
+          }),
+          if (displayTasks.isEmpty) const SizedBox(height: 12),
         ],
       ),
     );
@@ -274,7 +408,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  // مربع الاختيار
+                  //  check box
                   Container(
                     width: 22,
                     height: 22,

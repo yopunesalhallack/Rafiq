@@ -5,14 +5,17 @@ import '../../features/goals/data/models/goal.dart';
 import '../../features/goals/data/models/milestone.dart';
 
 class IsarService {
-  Future<Isar> get db => _openDB();
+  Isar? _isar;
 
-  Future<Isar> _openDB() async {
+  Future<Isar> get db async {
+    if (_isar != null) return _isar!;
+
     final dir = await getApplicationDocumentsDirectory();
-    return await Isar.open([
-      TaskSchema,
-      GoalSchema,
-      MilestoneSchema,
-    ], directory: dir.path);
+    _isar = await Isar.open(
+      [TaskSchema, GoalSchema, MilestoneSchema],
+      directory: dir.path,
+      inspector: true,
+    );
+    return _isar!;
   }
 }

@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:rafiq_app/core/utils/service_locator.dart';
-import 'package:rafiq_app/features/goals/presentation/screens/addgoal_widget.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rafiq_app/features/goals/presentation/screens/add_task_bottom_sheet.dart';
+import 'package:rafiq_app/home_screen.dart';
 import '../../data/models/task.dart';
-import '../../domain/repositories/task_repository.dart';
 
-class StandaloneTasksScreen extends StatelessWidget {
-  StandaloneTasksScreen({super.key});
-
-  final TaskRepository _taskRepository = getIt<TaskRepository>();
+class StandaloneTasksScreen extends ConsumerWidget {
+  const StandaloneTasksScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // ✅ مراقبة جميع المهام عبر المزود
+    final tasksAsync = ref.watch(tasksStreamProvider);
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -29,25 +30,17 @@ class StandaloneTasksScreen extends StatelessWidget {
                 _buildHeader(),
                 const SizedBox(height: 20),
                 Expanded(
-                  child: StreamBuilder<List<Task>>(
-                    stream: _taskRepository.watchAllTasks(),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasError) {
-                        return const Center(child: Text('خطأ في تحميل المهام'));
-                      }
-
-                      final allTasks = snapshot.data ?? [];
-                      //  standalone tasks
+                  //  AsyncValue.when
+                  child: tasksAsync.when(
+                    data: (allTasks) {
                       final standaloneTasks = allTasks
                           .where((t) => t.goalId == null)
                           .toList();
-
                       if (standaloneTasks.isEmpty) {
                         return const Center(
                           child: Text('لا توجد مهام مستقلة، أضف مهمة جديدة!'),
                         );
                       }
-
                       return ListView.separated(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
@@ -57,10 +50,14 @@ class StandaloneTasksScreen extends StatelessWidget {
                         separatorBuilder: (_, _) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final task = standaloneTasks[index];
-                          return _buildTaskCard(context, task);
+                          return _buildTaskCard(context, ref, task);
                         },
                       );
                     },
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (err, stack) =>
+                        Center(child: Text('خطأ في تحميل المهام: $err')),
                   ),
                 ),
               ],
@@ -73,7 +70,6 @@ class StandaloneTasksScreen extends StatelessWidget {
               context: context,
               isScrollControlled: true,
               backgroundColor: Colors.transparent,
-              //
               builder: (context) => const AddTaskBottomSheet(goalId: null),
             );
           },
@@ -104,7 +100,10 @@ class StandaloneTasksScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTaskCard(BuildContext context, Task task) {
+  Widget _buildTaskCard(BuildContext context, WidgetRef ref, Task task) {
+    // ✅ الحصول على الـ Repository عند الحاجة
+    final taskRepository = ref.read(taskRepositoryProvider);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -124,11 +123,10 @@ class StandaloneTasksScreen extends StatelessWidget {
             value: task.status == TaskStatus.completed,
             activeColor: const Color(0xFF27A4A7),
             onChanged: (value) async {
-              // update status
               task.status = value == true
                   ? TaskStatus.completed
                   : TaskStatus.pending;
-              await _taskRepository.updateTask(task);
+              await taskRepository.updateTask(task);
             },
           ),
           const SizedBox(width: 12),
@@ -159,8 +157,7 @@ class StandaloneTasksScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.grey),
             onPressed: () async {
-              //  delet task
-              await _taskRepository.deleteTask(task.id);
+              await taskRepository.deleteTask(task.id);
             },
           ),
         ],

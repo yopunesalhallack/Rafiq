@@ -13,25 +13,52 @@ class TaskRepositoryImpl implements TaskRepository {
   // ==========================================================
   // Progress
   // ==========================================================
-  Future<void> _updateGoalProgress(int? goalId) async {
-    if (goalId == null) return; // check task  if  releated with goal
+  // Future<void> _updateGoalProgress(int? goalId) async {
+  //   if (goalId == null) return; // check task  if  releated with goal
 
+  //   final db = await _db;
+
+  //   final allTasks = await db.tasks.where().findAll();
+
+  //   final tasks = allTasks.where((t) => t.goalId == goalId).toList();
+
+  //   final total = tasks.length;
+  //   final completed = tasks
+  //       .where((t) => t.status == TaskStatus.completed)
+  //       .length;
+
+  //   final progress = total == 0 ? 0 : ((completed / total) * 100).round();
+
+  //   final goal = await db.goals.where().idEqualTo(goalId).findFirst();
+  //   if (goal != null) {
+  //     goal.progressPercent = progress;
+  //     await db.goals.put(goal);
+  //   }
+  // }
+  Future<void> _updateGoalProgress(int? goalId) async {
+    if (goalId == null) return;
     final db = await _db;
 
+    // 1. جلب جميع المهام
     final allTasks = await db.tasks.where().findAll();
 
+    // 2. تصفيتها يدويًا في الذاكرة حسب goalId
     final tasks = allTasks.where((t) => t.goalId == goalId).toList();
 
     final total = tasks.length;
     final completed = tasks
         .where((t) => t.status == TaskStatus.completed)
         .length;
-
     final progress = total == 0 ? 0 : ((completed / total) * 100).round();
 
     final goal = await db.goals.where().idEqualTo(goalId).findFirst();
     if (goal != null) {
       goal.progressPercent = progress;
+      if (total > 0 && completed == total) {
+        goal.status = GoalStatus.completed;
+      } else {
+        goal.status = GoalStatus.active;
+      }
       await db.goals.put(goal);
     }
   }

@@ -1,23 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:rafiq_app/core/utils/service_locator.dart';
+import 'package:rafiq_app/core/utils/locale_provider.dart';
 import 'package:rafiq_app/features/goals/data/models/goal.dart';
-import 'package:rafiq_app/features/goals/domain/repositories/goal_repository.dart';
 import 'package:rafiq_app/features/goals/presentation/widgets/add_goal_bottom_sheet.dart';
+import 'package:rafiq_app/home_screen.dart';
+import 'package:rafiq_app/l10n/app_localizations.dart';
 
 const Color kPrimaryColor = Color(0xFF27A4A7);
 const Color kDarkText = Color(0xFF1B1B1B);
 const Color kGreyText = Color(0xFF757575);
 const Color kProgressOrange = Color(0xFFF5A623);
 
-class GoalsScreen extends StatelessWidget {
-  GoalsScreen({super.key});
+class GoalsScreen extends ConsumerWidget {
+  const GoalsScreen({super.key});
 
-  final GoalRepository _goalRepository = getIt<GoalRepository>();
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final goalsAsync = ref.watch(goalsStreamProvider);
+    final locale = ref.watch(localeProvider);
+    final isArabic = locale.languageCode == 'ar';
+    final l10n = AppLocalizations.of(context)!;
+
     return Directionality(
-      textDirection: TextDirection.ltr,
+      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: Container(
@@ -34,23 +40,14 @@ class GoalsScreen extends StatelessWidget {
           child: SafeArea(
             child: Column(
               children: [
-                _buildHeader(),
+                _buildHeader(l10n),
                 const SizedBox(height: 20),
                 Expanded(
-                  child: StreamBuilder<List<Goal>>(
-                    stream: _goalRepository.watchGoals(),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasError) {
-                        return const Center(
-                          child: Text('خطأ في تحميل البيانات'),
-                        );
+                  child: goalsAsync.when(
+                    data: (goals) {
+                      if (goals.isEmpty) {
+                        return Center(child: Text(l10n.noGoalsYet));
                       }
-                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return const Center(
-                          child: Text('لا توجد أهداف بعد، أضف هدفاً!'),
-                        );
-                      }
-                      final goals = snapshot.data!;
                       return ListView.separated(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
@@ -121,7 +118,7 @@ class GoalsScreen extends StatelessWidget {
                                         goal.targetDate
                                                 ?.toIso8601String()
                                                 .substring(0, 10) ??
-                                            'تاريخ غير محدد',
+                                            l10n.unknownDate,
                                         style: const TextStyle(
                                           fontSize: 12,
                                           color: Colors.grey,
@@ -129,8 +126,8 @@ class GoalsScreen extends StatelessWidget {
                                       ),
                                       Text(
                                         goal.status == GoalStatus.active
-                                            ? 'قيد التنفيذ'
-                                            : 'مكتمل',
+                                            ? l10n.inProgress
+                                            : l10n.completedStatus,
                                         style: const TextStyle(
                                           fontSize: 12,
                                           color: Colors.grey,
@@ -145,6 +142,16 @@ class GoalsScreen extends StatelessWidget {
                         },
                       );
                     },
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (err, stack) => Center(
+                      child: Text(
+                        l10n.errorLoadingData.replaceFirst(
+                          r'$error',
+                          err.toString(),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -157,7 +164,7 @@ class GoalsScreen extends StatelessWidget {
               context: context,
               isScrollControlled: true,
               backgroundColor: Colors.transparent,
-              builder: (context) => AddGoalBottomSheet(),
+              builder: (context) => const AddGoalBottomSheet(),
             );
           },
           backgroundColor: const Color(0xFF27A4A7),
@@ -168,7 +175,7 @@ class GoalsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: Row(
@@ -178,33 +185,12 @@ class GoalsScreen extends StatelessWidget {
             onPressed: () {},
             icon: const Icon(Icons.settings_outlined, size: 26),
           ),
-          const Text(
-            'أهدافك',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          Text(
+            l10n.myGoals,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
         ],
       ),
     );
   }
 }
-
-//     final List<Map<String, dynamic>> goals = [
-//       {
-//         'title': 'تعلم اللغة الفرنسية',
-//         'subtitle': 'أساسيات اللغة',
-//         'percentage': 60,
-//         'progressColor': kPrimaryColor,
-//         'date': '2023 - 2033',
-//         'status': 'انتهى العمل',
-//         'avatars': [Colors.blue.shade300],
-//       },
-//       {
-//         'title': 'إنشاء متجر إلكتروني',
-//         'subtitle': 'التسويق الإلكتروني',
-//         'percentage': 35,
-//         'progressColor': kProgressOrange,
-//         'date': '2023 - 2033',
-//         'status': 'قيد التنفيذ',
-//         'avatars': [Colors.orange.shade300, Colors.purple.shade300],
-//       },
-//     ];

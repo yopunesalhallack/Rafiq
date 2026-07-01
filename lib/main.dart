@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rafiq_app/assistant_screen.dart';
-import 'package:rafiq_app/core/utils/service_locator.dart';
+import 'package:rafiq_app/core/utils/locale_provider.dart';
+//import 'package:rafiq_app/core/utils/service_locator.dart';
 import 'package:rafiq_app/features/auth/presentation/screens/login_screen.dart';
 import 'package:rafiq_app/features/goals/presentation/screens/goal_details_screen.dart';
 import 'package:rafiq_app/features/goals/presentation/screens/goals_screen.dart';
 import 'package:rafiq_app/features/tasks/presentation/screens/onboarding_screen.dart';
 import 'package:rafiq_app/home_screen.dart';
+import 'package:rafiq_app/l10n/app_localizations.dart';
 import 'package:rafiq_app/notifications_screen.dart';
 import 'package:rafiq_app/profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await setupServiceLocator();
-
-  runApp(const RafiqApp());
+  runApp(const ProviderScope(child: RafiqApp()));
 }
 
 ///////////routes/////////
@@ -27,6 +29,7 @@ final _router = GoRouter(
       path: '/onboarding',
       builder: (context, state) => const OnboardingScreen(),
     ),
+    // GoRoute(path: '/goals', builder: (context, state) => GoalsScreen()),
     GoRoute(
       path: '/goal-details',
       builder: (context, state) => const GoalDetailsScreen(),
@@ -42,10 +45,7 @@ final _router = GoRouter(
       branches: [
         StatefulShellBranch(
           routes: <RouteBase>[
-            GoRoute(
-              path: '/home',
-              builder: (context, state) => const HomeScreen(),
-            ),
+            GoRoute(path: '/home', builder: (context, state) => HomeScreen()),
           ],
         ),
         StatefulShellBranch(
@@ -74,16 +74,29 @@ final _router = GoRouter(
   ],
 );
 
-class RafiqApp extends StatelessWidget {
+class RafiqApp extends ConsumerWidget {
   const RafiqApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locale = ref.watch(localeProvider); // cuurent lang
+
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
 
       title: 'Rafiq App',
+      locale: locale,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('ar', 'SA'), // العربية
+        Locale('en', 'US'), // الإنجليزية
+      ],
       theme: ThemeData(
         primaryColor: const Color(0xFF27A4A7),
         scaffoldBackgroundColor: Colors.white,
@@ -100,6 +113,8 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: navigationShell,
@@ -119,13 +134,13 @@ class ScaffoldWithNavBar extends StatelessWidget {
           navigationShell.goBranch(index);
         },
         items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.home_filled),
-            label: 'الرئيسية',
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.home_filled),
+            label: l10n.nav_home,
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.flag_outlined),
-            label: 'الأهداف',
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.flag_outlined),
+            label: l10n.nav_goals,
           ),
           BottomNavigationBarItem(
             icon: SizedBox(
@@ -136,11 +151,11 @@ class ScaffoldWithNavBar extends StatelessWidget {
                 fit: BoxFit.contain,
               ),
             ),
-            label: 'المساعد',
+            label: l10n.nav_assistant,
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'الملف الشخصي',
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.person_outline),
+            label: l10n.nav_profile,
           ),
         ],
       ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
-import 'package:rafiq_app/core/utils/service_locator.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rafiq_app/core/utils/providers.dart';
 import 'package:rafiq_app/features/tasks/data/models/task.dart';
 import 'package:rafiq_app/features/tasks/domain/repositories/task_repository.dart';
 
@@ -8,16 +8,16 @@ const Color kPrimaryColor = Color(0xFF27A4A7);
 const Color kDarkText = Color(0xFF1B1B1B);
 const Color kGreyText = Color(0xFF757575);
 
-class AddTaskBottomSheet extends StatefulWidget {
+class AddTaskBottomSheet extends ConsumerStatefulWidget {
   final int? goalId;
 
   const AddTaskBottomSheet({super.key, this.goalId});
 
   @override
-  State<AddTaskBottomSheet> createState() => _AddTaskBottomSheetState();
+  ConsumerState<AddTaskBottomSheet> createState() => _AddTaskBottomSheetState();
 }
 
-class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
+class _AddTaskBottomSheetState extends ConsumerState<AddTaskBottomSheet> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
@@ -25,7 +25,13 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
   Priority _selectedPriority = Priority.medium;
   TaskStatus _selectedStatus = TaskStatus.pending;
 
-  final TaskRepository _taskRepository = getIt<TaskRepository>();
+  late final TaskRepository _taskRepository;
+
+  @override
+  void initState() {
+    super.initState();
+    _taskRepository = ref.read(taskRepositoryProvider);
+  }
 
   // pick date&time
   Future<void> _pickDateAndTime() async {
@@ -77,6 +83,7 @@ class _AddTaskBottomSheetState extends State<AddTaskBottomSheet> {
       ..createdAt = DateTime.now();
 
     await _taskRepository.addTask(newTask);
+
     if (context.mounted) Navigator.pop(context);
   }
 

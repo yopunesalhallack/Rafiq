@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const Color kPrimaryColor = Color(0xFF27A4A7);
 const Color kDarkText = Color(0xFF1B1B1B);
 const Color kGreyText = Color(0xFF757575);
 const Color kInputBgColor = Color(0xFFF5F6F7);
 
-class AssistantScreen extends StatefulWidget {
+class AssistantScreen extends ConsumerStatefulWidget {
   const AssistantScreen({super.key});
-
   @override
-  State<AssistantScreen> createState() => _AssistantScreenState();
+  ConsumerState<AssistantScreen> createState() => _AssistantScreenState();
 }
 
-class _AssistantScreenState extends State<AssistantScreen> {
+class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -76,8 +76,12 @@ class _AssistantScreenState extends State<AssistantScreen> {
 
   @override
   Widget build(BuildContext context) {
+    //final locale = ref.watch(localeProvider);
+    //final isArabic = locale.languageCode == 'ar';
     return Directionality(
-      textDirection: TextDirection.ltr,
+      //textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+      textDirection: TextDirection.rtl,
+
       child: Scaffold(
         backgroundColor: Colors.white,
         body: Container(

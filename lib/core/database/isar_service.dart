@@ -5,17 +5,20 @@ import '../../features/goals/data/models/goal.dart';
 import '../../features/goals/data/models/milestone.dart';
 
 class IsarService {
-  Isar? _isar;
+  static Future<Isar>? _dbFuture; // تخزين العملية المستقبلية
 
-  Future<Isar> get db async {
-    if (_isar != null) return _isar!;
+  Future<Isar> get db {
+    if (_dbFuture != null) return _dbFuture!;
+    _dbFuture = _open();
+    return _dbFuture!;
+  }
 
+  Future<Isar> _open() async {
     final dir = await getApplicationDocumentsDirectory();
-    _isar = await Isar.open(
+    return await Isar.open(
       [TaskSchema, GoalSchema, MilestoneSchema],
       directory: dir.path,
       inspector: true,
     );
-    return _isar!;
   }
 }

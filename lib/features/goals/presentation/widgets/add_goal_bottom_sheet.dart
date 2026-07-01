@@ -1,22 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:rafiq_app/core/utils/service_locator.dart';
-import '../../../goals/domain/repositories/goal_repository.dart';
-import '../../../goals/data/models/goal.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rafiq_app/core/utils/providers.dart';
+import 'package:rafiq_app/features/goals/data/models/goal.dart';
+import 'package:rafiq_app/features/goals/domain/repositories/goal_repository.dart';
 
-class AddGoalBottomSheet extends StatefulWidget {
+const Color kPrimaryColor = Color(0xFF27A4A7);
+
+class AddGoalBottomSheet extends ConsumerStatefulWidget {
   const AddGoalBottomSheet({super.key});
 
   @override
-  State<AddGoalBottomSheet> createState() => _AddGoalBottomSheetState();
+  ConsumerState<AddGoalBottomSheet> createState() => _AddGoalBottomSheetState();
 }
 
-class _AddGoalBottomSheetState extends State<AddGoalBottomSheet> {
+class _AddGoalBottomSheetState extends ConsumerState<AddGoalBottomSheet> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   DateTime? _targetDate;
   bool _isAiEnabled = false;
 
-  final GoalRepository _goalRepository = getIt<GoalRepository>();
+  late final GoalRepository _goalRepository;
+
+  @override
+  void initState() {
+    super.initState();
+    _goalRepository = ref.read(goalRepositoryProvider);
+  }
 
   Future<void> _saveGoal() async {
     if (_titleController.text.trim().isEmpty) {
